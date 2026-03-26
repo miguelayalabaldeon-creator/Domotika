@@ -2,7 +2,7 @@
   "name": "Domotika · Flujo de Caja",
   "short_name": "Domotika FC",
   "description": "Control de Flujo de Caja para proyectos de construcción",
-  "start_url": "/index.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0a0f1a",
