@@ -1,0 +1,93 @@
+═══════════════════════════════════════════════════════════════
+    DOMOTIKA · FLUJO DE CAJA — GUÍA DE INSTALACIÓN EN ANDROID
+═══════════════════════════════════════════════════════════════
+
+Esta aplicación es una PWA (Progressive Web App), lo que significa
+que funciona como una app nativa en Android SIN necesitar una tienda
+de apps ni instaladores especiales.
+
+───────────────────────────────────────────────────────────────
+OPCIÓN A: INSTALAR DESDE ARCHIVO LOCAL (recomendado)
+───────────────────────────────────────────────────────────────
+
+1. Copia la carpeta completa "domotika-app" a tu celular Android
+   (puedes usar USB, WhatsApp, Google Drive, etc.)
+
+2. En tu celular, instala la app gratuita "KSWEB" o usa cualquier
+   servidor local como "Simple HTTP Server" desde Play Store.
+
+3. Apunta el servidor a la carpeta domotika-app y abre en Chrome:
+   http://localhost:8080
+
+4. Chrome mostrará un banner: "Agregar Domotika a pantalla de inicio"
+   → Toca "Instalar" → ¡Listo! Aparecerá como app en tu celular.
+
+───────────────────────────────────────────────────────────────
+OPCIÓN B: HOSPEDAR EN UN SERVIDOR (más fácil)
+───────────────────────────────────────────────────────────────
+
+1. Sube los archivos a cualquier hosting gratuito:
+   • GitHub Pages (gratis): github.com → nuevo repo → Pages
+   • Netlify (gratis): netlify.com → arrastra la carpeta
+   • Vercel (gratis): vercel.com
+
+2. Abre la URL en Chrome para Android
+
+3. Menú (⋮) → "Agregar a pantalla de inicio" → "Instalar"
+
+4. ¡La app aparece en tu launcher como cualquier app Android!
+
+───────────────────────────────────────────────────────────────
+OPCIÓN C: ABRIR DIRECTO DESDE HTML (sin instalar)
+───────────────────────────────────────────────────────────────
+
+Si solo quieres usarla sin instalar:
+
+1. Copia el archivo index.html a tu celular
+2. Ábrelo con Chrome
+3. Funciona al instante (sin conexión a internet necesaria
+   después de cargar por primera vez)
+
+───────────────────────────────────────────────────────────────
+FUNCIONALIDADES DE LA APP
+───────────────────────────────────────────────────────────────
+
+📊 DASHBOARD
+   • KPIs: Ingresos, Egresos, Saldo en Caja, Por Pagar
+   • Gráfico Ingresos vs Egresos por mes
+   • Distribución de Egresos por subcategoría
+   • Proyección de pagos pendientes
+   • Resumen por proyecto
+
+➕ NUEVO MOVIMIENTO (3 pasos guiados)
+   • Paso 1: Tipo, monto, IGV automático, fecha, proyecto
+   • Paso 2: Categoría, subcategoría, proveedor, descripción
+   • Paso 3: Forma de pago, cuenta, documentos, estado
+   • Chips/botones para selección rápida (sin tipear mucho)
+   • Cálculo automático de IGV 18%
+
+📋 MOVIMIENTOS
+   • Lista de todos los movimientos
+   • Filtros: Todos / Ingresos / Egresos / Pendientes / Pagados
+   • Resumen de totales por filtro
+
+📤 EXPORTAR / IMPORTAR
+   • Exportar a Excel (.xlsx) con formato original de Domotika
+   • Exportar a CSV
+   • Importar desde Excel existente (BASE_MOVIMIENTOS)
+   • Los datos se guardan automáticamente en el celular
+
+───────────────────────────────────────────────────────────────
+DATOS INCLUIDOS
+───────────────────────────────────────────────────────────────
+
+La app viene precargada con los 14 movimientos de tu Excel
+original (flujo_caja_domotika_base.xlsx) como datos de ejemplo.
+
+Al exportar a Excel, se genera un archivo con exactamente
+el mismo formato de columnas que tu base de datos original,
+listo para abrir con tablas dinámicas.
+
+═══════════════════════════════════════════════════════════════
+                       Domotika · 2026
+═══════════════════════════════════════════════════════════════

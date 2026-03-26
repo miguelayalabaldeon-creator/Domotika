@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0f1923">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Domotika FC">
+<link rel="manifest" href="manifest.json">
+<title>Domotika · Flujo de Caja</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg: #0a0f1a;
+  --bg2: #111827;
+  --bg3: #1a2234;
+  --card: #161f2e;
+  --card2: #1e2b3d;
+  --border: #253044;
+  --accent: #00d4aa;
+  --accent2: #0099ff;
+  --accent3: #ff6b35;
+  --income: #10d48e;
+  --expense: #ff4757;
+  --pending: #ffa502;
+  --text: #e8edf5;
+  --text2: #8b9ab5;
+  --text3: #5a6a84;
+  --radius: 16px;
+  --shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); }
+
+/* SPLASH */
+#splash {
+  position: fixed; inset: 0; background: var(--bg); z-index: 9999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  transition: opacity 0.5s;
+}
+#splash .logo-mark {
+  width: 80px; height: 80px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 24px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px;
+  box-shadow: 0 0 40px rgba(0,212,170,0.4);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{box-shadow:0 0 40px rgba(0,212,170,0.4)} 50%{box-shadow:0 0 60px rgba(0,212,170,0.7)} }
+#splash h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+#splash p { color: var(--text2); font-size: 14px; }
+.splash-bar { width: 200px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+.splash-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; animation: load 1.5s ease forwards; }
+@keyframes load { from{width:0} to{width:100%} }
+
+/* LAYOUT */
+#app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+/* TOP BAR */
+.topbar {
+  background: var(--card); border-bottom: 1px solid var(--border);
+  padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.topbar-brand { display: flex; align-items: center; gap: 10px; }
+.topbar-logo { width: 36px; height: 36px; background: linear-gradient(135deg,var(--accent),var(--accent2)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.topbar-title { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+.topbar-sub { font-size: 11px; color: var(--text2); }
+.topbar-actions { display: flex; gap: 8px; }
+.icon-btn { width: 36px; height: 36px; border: 1px solid var(--border); background: var(--card2); border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text2); font-size: 16px; transition: all 0.2s; }
+.icon-btn:hover, .icon-btn:active { background: var(--accent); color: white; border-color: var(--accent); }
+
+/* CONTENT */
+#content { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+.page { display: none; padding: 16px; }
+.page.active { display: block; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+
+/* BOTTOM NAV */
+.bottomnav {
+  background: var(--card); border-top: 1px solid var(--border);
+  display: flex; align-items: stretch;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 10px 4px; cursor: pointer; color: var(--text3);
+  transition: all 0.2s; position: relative; gap: 3px; border: none; background: none;
+}
+.nav-item.active { color: var(--accent); }
+.nav-item .nav-icon { font-size: 22px; transition: transform 0.2s; }
+.nav-item.active .nav-icon { transform: scale(1.1); }
+.nav-item .nav-label { font-size: 10px; font-weight: 500; }
+.nav-item.active::after { content:''; position:absolute; top:0; left:20%; right:20%; height:2px; background:var(--accent); border-radius:0 0 2px 2px; }
+
+/* DASHBOARD */
+.kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.kpi-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; position: relative; overflow: hidden;
+}
+.kpi-card::before { content:''; position:absolute; top:-20px; right:-20px; width:80px; height:80px; border-radius:50%; opacity:0.1; }
+.kpi-card.income::before { background: var(--income); }
+.kpi-card.expense::before { background: var(--expense); }
+.kpi-card.balance::before { background: var(--accent2); }
+.kpi-card.pending::before { background: var(--pending); }
+.kpi-label { font-size: 11px; color: var(--text2); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+.kpi-value { font-size: 22px; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin: 6px 0 2px; letter-spacing: -0.5px; }
+.kpi-card.income .kpi-value { color: var(--income); }
+.kpi-card.expense .kpi-value { color: var(--expense); }
+.kpi-card.balance .kpi-value { color: var(--accent2); }
+.kpi-card.pending .kpi-value { color: var(--pending); }
+.kpi-delta { font-size: 11px; color: var(--text3); }
+
+.section-title { font-size: 14px; font-weight: 600; color: var(--text2); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.section-title::before { content:''; display:block; width:3px; height:16px; background:var(--accent); border-radius:2px; }
+
+.chart-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+.chart-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
+canvas { max-height: 200px; }
+
+/* PROJECTIONS */
+.proj-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.proj-table th { color: var(--text3); font-weight: 500; padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+.proj-table td { padding: 8px; border-bottom: 1px solid rgba(37,48,68,0.5); }
+.proj-table tr:last-child td { border-bottom: none; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+.badge-income { background: rgba(16,212,142,0.15); color: var(--income); }
+.badge-expense { background: rgba(255,71,87,0.15); color: var(--expense); }
+.badge-paid { background: rgba(0,212,170,0.15); color: var(--accent); }
+.badge-pending { background: rgba(255,165,2,0.15); color: var(--pending); }
+
+/* FORM */
+.form-section { margin-bottom: 20px; }
+.form-section-title {
+  font-size: 13px; font-weight: 600; color: var(--accent); text-transform: uppercase;
+  letter-spacing: 0.5px; margin-bottom: 12px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px;
+}
+
+.form-row { margin-bottom: 14px; }
+.form-label { font-size: 12px; color: var(--text2); font-weight: 500; margin-bottom: 6px; display: block; }
+.form-label span.req { color: var(--expense); }
+
+.form-input, .form-select, .form-textarea {
+  width: 100%; background: var(--card2); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px; padding: 12px 14px; outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none; appearance: none;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,170,0.15);
+}
+.form-textarea { resize: none; height: 80px; }
+.form-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b9ab5' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+.form-select option { background: var(--card2); }
+
+/* CHIPS */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  border: 1px solid var(--border); background: var(--card2); color: var(--text2);
+  cursor: pointer; transition: all 0.15s; user-select: none;
+}
+.chip:active { transform: scale(0.96); }
+.chip.selected { background: var(--accent); color: #0a0f1a; border-color: var(--accent); font-weight: 600; }
+.chip.type-ingreso.selected { background: var(--income); border-color: var(--income); }
+.chip.type-egreso.selected { background: var(--expense); border-color: var(--expense); }
+
+/* AMOUNT INPUT */
+.amount-wrap { position: relative; }
+.amount-currency { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text2); font-size: 14px; font-weight: 600; }
+.amount-input { padding-left: 40px !important; font-family: 'JetBrains Mono', monospace !important; font-size: 22px !important; font-weight: 600 !important; color: var(--text) !important; }
+
+/* IGV TOGGLE */
+.igv-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.toggle-wrap { display: flex; align-items: center; gap: 10px; }
+.toggle { width: 44px; height: 24px; background: var(--border); border-radius: 12px; position: relative; cursor: pointer; transition: background 0.2s; }
+.toggle.on { background: var(--accent); }
+.toggle::after { content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; background:white; border-radius:50%; transition:transform 0.2s; box-shadow:0 1px 4px rgba(0,0,0,0.3); }
+.toggle.on::after { transform: translateX(20px); }
+.igv-calculated { font-size: 12px; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
+
+/* SUBMIT BTN */
+.btn-primary {
+  width: 100%; padding: 16px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #0a0f1a; font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px; font-weight: 700; border: none; cursor: pointer;
+  transition: all 0.2s; letter-spacing: 0.3px;
+  box-shadow: 0 4px 20px rgba(0,212,170,0.3);
+}
+.btn-primary:active { transform: scale(0.98); box-shadow: 0 2px 10px rgba(0,212,170,0.2); }
+.btn-secondary {
+  width: 100%; padding: 14px; border-radius: 14px;
+  background: transparent; color: var(--text2);
+  font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 500;
+  border: 1px solid var(--border); cursor: pointer; transition: all 0.2s;
+  margin-top: 8px;
+}
+.btn-secondary:active { background: var(--card2); }
+
+/* MOVEMENTS LIST */
+.mov-item {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px; margin-bottom: 10px;
+  display: flex; align-items: flex-start; gap: 12px;
+  animation: fadeIn 0.3s ease;
+}
+.mov-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.mov-icon.ingreso { background: rgba(16,212,142,0.15); }
+.mov-icon.egreso { background: rgba(255,71,87,0.15); }
+.mov-info { flex: 1; min-width: 0; }
+.mov-desc { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mov-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.mov-right { text-align: right; flex-shrink: 0; }
+.mov-amount { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; }
+.mov-amount.ingreso { color: var(--income); }
+.mov-amount.egreso { color: var(--expense); }
+.mov-date { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+/* FILTER BAR */
+.filter-bar { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.filter-bar::-webkit-scrollbar { display: none; }
+.filter-chip { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; border: 1px solid var(--border); background: var(--card); color: var(--text2); cursor: pointer; white-space: nowrap; transition: all 0.15s; flex-shrink: 0; }
+.filter-chip.active { background: var(--accent); color: #0a0f1a; border-color: var(--accent); font-weight: 600; }
+
+/* SUCCESS TOAST */
+.toast {
+  position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--income); color: #0a0f1a; padding: 12px 24px;
+  border-radius: 40px; font-size: 13px; font-weight: 600;
+  box-shadow: var(--shadow); z-index: 9999;
+  transition: all 0.3s; opacity: 0; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.error { background: var(--expense); color: white; }
+
+/* EXPORT */
+.export-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 14px; }
+.export-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.export-card p { font-size: 12px; color: var(--text2); margin-bottom: 16px; }
+.export-btn { display: flex; align-items: center; gap: 10px; padding: 14px; background: var(--card2); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 500; color: var(--text); width: 100%; margin-bottom: 8px; transition: all 0.2s; }
+.export-btn:active { background: var(--border); }
+.export-btn-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.export-btn-icon.excel { background: rgba(16,212,142,0.15); }
+.export-btn-icon.csv { background: rgba(0,153,255,0.15); }
+
+/* SCROLLBAR */
+#content::-webkit-scrollbar { width: 3px; }
+#content::-webkit-scrollbar-track { background: transparent; }
+#content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* SUMMARY ROW */
+.summary-row { display: flex; gap: 8px; background: var(--card2); border-radius: 12px; padding: 12px; margin-bottom: 16px; }
+.summary-item { flex: 1; text-align: center; }
+.summary-item .s-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; }
+.summary-item .s-lab { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+/* EMPTY STATE */
+.empty { text-align: center; padding: 48px 24px; color: var(--text3); }
+.empty .empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty h3 { font-size: 16px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+.empty p { font-size: 13px; }
+
+/* STEP INDICATOR */
+.step-dots { display: flex; gap: 6px; justify-content: center; margin-bottom: 20px; }
+.step-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: all 0.3s; }
+.step-dot.active { background: var(--accent); width: 20px; border-radius: 3px; }
+
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="logo-mark">💰</div>
+  <h1>Domotika</h1>
+  <p>Control de Flujo de Caja</p>
+  <div class="splash-bar"><div class="splash-fill"></div></div>
+</div>
+
+<div id="app" style="display:none">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-logo">💰</div>
+      <div>
+        <div class="topbar-title">Domotika</div>
+        <div class="topbar-sub" id="topbar-date">Flujo de Caja</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn" onclick="showPage('export')" title="Exportar">📤</button>
+    </div>
+  </div>
+
+  <div id="content">
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="kpi-grid">
+        <div class="kpi-card income">
+          <div class="kpi-label">📈 Ingresos</div>
+          <div class="kpi-value" id="kpi-income">S/ 0</div>
+          <div class="kpi-delta" id="kpi-income-count">0 movimientos</div>
+        </div>
+        <div class="kpi-card expense">
+          <div class="kpi-label">📉 Egresos</div>
+          <div class="kpi-value" id="kpi-expense">S/ 0</div>
+          <div class="kpi-delta" id="kpi-expense-count">0 movimientos</div>
+        </div>
+        <div class="kpi-card balance">
+          <div class="kpi-label">💼 Saldo en Caja</div>
+          <div class="kpi-value" id="kpi-balance">S/ 0</div>
+          <div class="kpi-delta">Neto total</div>
+        </div>
+        <div class="kpi-card pending">
+          <div class="kpi-label">⏳ Por Pagar</div>
+          <div class="kpi-value" id="kpi-pending">S/ 0</div>
+          <div class="kpi-delta" id="kpi-pending-count">0 pendientes</div>
+        </div>
+      </div>
+
+      <div class="section-title">Flujo mensual</div>
+      <div class="chart-card">
+        <div class="chart-title">Ingresos vs Egresos</div>
+        <canvas id="chartBar"></canvas>
+      </div>
+
+      <div class="section-title">Distribución de Egresos</div>
+      <div class="chart-card">
+        <div class="chart-title">Por subcategoría</div>
+        <canvas id="chartDoughnut"></canvas>
+      </div>
+
+      <div class="section-title">Proyección de pagos</div>
+      <div class="chart-card">
+        <div style="overflow-x:auto">
+        <table class="proj-table">
+          <thead>
+            <tr>
+              <th>Descripción</th>
+              <th>Monto</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="proj-tbody"></tbody>
+        </table>
+        </div>
+      </div>
+
+      <div class="section-title">Por proyecto</div>
+      <div class="chart-card">
+        <canvas id="chartProject"></canvas>
+      </div>
+
+      <div style="height:20px"></div>
+    </div>
+
+    <!-- NUEVO MOVIMIENTO -->
+    <div class="page" id="page-new">
+      <div class="step-dots">
+        <div class="step-dot active" id="dot-1"></div>
+        <div class="step-dot" id="dot-2"></div>
+        <div class="step-dot" id="dot-3"></div>
+      </div>
+
+      <!-- STEP 1: Tipo y monto -->
+      <div id="step-1">
+        <div class="form-section">
+          <div class="form-section-title">💱 Tipo de movimiento</div>
+          <div class="form-row">
+            <div class="chips" id="chips-tipo">
+              <div class="chip type-ingreso" onclick="selectChip('tipo','Ingreso',this)">📈 Ingreso</div>
+              <div class="chip type-egreso" onclick="selectChip('tipo','Egreso',this)">📉 Egreso</div>
+              <div class="chip type-egreso" onclick="selectChip('tipo','Detraccion',this)">🏦 Detracción</div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label">Monto Total <span class="req">*</span></label>
+            <div class="amount-wrap">
+              <span class="amount-currency">S/</span>
+              <input type="number" inputmode="decimal" class="form-input amount-input" id="f-monto" placeholder="0.00" step="0.01" oninput="calcIGV()">
+            </div>
+          </div>
+
+          <div class="igv-row">
+            <div class="form-label" style="margin:0">¿Incluye IGV (18%)?</div>
+            <div class="toggle-wrap">
+              <div class="toggle on" id="igv-toggle" onclick="toggleIGV()"></div>
+              <span class="igv-calculated" id="igv-text">IGV: S/ 0.00</span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label">Fecha <span class="req">*</span></label>
+            <input type="date" class="form-input" id="f-fecha">
+          </div>
+
+          <div class="form-row">
+            <label class="form-label">Proyecto <span class="req">*</span></label>
+            <div class="chips" id="chips-proyecto">
+              <div class="chip" onclick="selectChip('proyecto','Navarra 360',this)">🏗️ Navarra 360</div>
+              <div class="chip" onclick="selectChip('proyecto','General',this)">🏢 General</div>
+              <div class="chip" onclick="selectChip('proyecto','Otro',this)">➕ Otro</div>
+            </div>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="nextStep(2)">Continuar →</button>
+      </div>
+
+      <!-- STEP 2: Categoría y proveedor -->
+      <div id="step-2" style="display:none">
+        <div class="form-section">
+          <div class="form-section-title">📂 Categoría</div>
+          <div class="form-row">
+            <label class="form-label">Categoría principal</label>
+            <div class="chips" id="chips-categoria">
+              <div class="chip" onclick="selectChip('categoria','Operación',this)">⚙️ Operación</div>
+              <div class="chip" onclick="selectChip('categoria','Administración',this)">📋 Admin</div>
+              <div class="chip" onclick="selectChip('categoria','Detraccion',this)">🏦 Detrac.</div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label">Subcategoría</label>
+            <select class="form-select" id="f-subcategoria">
+              <option value="">Seleccionar...</option>
+              <option>Materiales</option>
+              <option>Alquiler equipos</option>
+              <option>Mano de obra</option>
+              <option>Servicio construcción</option>
+              <option>Transporte</option>
+              <option>Herramientas</option>
+              <option>Seguridad</option>
+              <option>Alimentación</option>
+              <option>Otro</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label">Cliente / Proveedor <span class="req">*</span></label>
+            <input type="text" class="form-input" id="f-proveedor" placeholder="Nombre del cliente o proveedor" list="proveedores-list">
+            <datalist id="proveedores-list"></datalist>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label">Descripción <span class="req">*</span></label>
+            <textarea class="form-textarea" id="f-descripcion" placeholder="Describe brevemente el movimiento..."></textarea>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="nextStep(3)">Continuar →</button>
+        <button class="btn-secondary" onclick="nextStep(1)">← Atrás</button>
+      </div>
+
+      <!-- STEP 3: Pago y documentos -->
+      <div id="step-3" style="display:none">
+        <div class="form-section">
+          <div class="form-section-title">💳 Forma de pago</div>
+          <div class="form-row">
+            <div class="chips" id="chips-medio">
+              <div class="chip" onclick="selectChip('medio','Transferencia',this)">🏦 Transferencia</div>
+              <div class="chip" onclick="selectChip('medio','Efectivo',this)">💵 Efectivo</div>
+              <div class="chip" onclick="selectChip('medio','Cheque',this)">📄 Cheque</div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label">Cuenta bancaria</label>
+            <div class="chips" id="chips-cuenta">
+              <div class="chip" onclick="selectChip('cuenta','BCP Domotika',this)">🏦 BCP</div>
+              <div class="chip" onclick="selectChip('cuenta','Cuenta Miguel',this)">👤 Miguel</div>
+              <div class="chip" onclick="selectChip('cuenta','Cuenta Roberto',this)">👤 Roberto</div>
+              <div class="chip" onclick="selectChip('cuenta','-',this)">—</div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label">Responsable</label>
+            <div class="chips" id="chips-responsable">
+              <div class="chip" onclick="selectChip('responsable','Miguel',this)">Miguel</div>
+              <div class="chip" onclick="selectChip('responsable','Enderly',this)">Enderly</div>
+              <div class="chip" onclick="selectChip('responsable','Zoe',this)">Zoe</div>
+              <div class="chip" onclick="selectChip('responsable','Maria',this)">Maria</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">📎 Documento</div>
+          <div class="form-row">
+            <label class="form-label">Tipo de documento</label>
+            <div class="chips" id="chips-tipodoc">
+              <div class="chip" onclick="selectChip('tipodoc','Factura',this)">🧾 Factura</div>
+              <div class="chip" onclick="selectChip('tipodoc','Boleta',this)">📋 Boleta</div>
+              <div class="chip" onclick="selectChip('tipodoc','Recibo',this)">📝 Recibo</div>
+              <div class="chip" onclick="selectChip('tipodoc','Sin doc.',this)">🚫 Sin doc.</div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label">Nº Documento</label>
+            <input type="text" class="form-input" id="f-ndoc" placeholder="Ej: F001-00001234">
+          </div>
+
+          <div class="form-row">
+            <label class="form-label">Estado</label>
+            <div class="chips" id="chips-estado">
+              <div class="chip" onclick="selectChip('estado','Pagado',this)">✅ Pagado</div>
+              <div class="chip" onclick="selectChip('estado','Pendiente',this)">⏳ Pendiente</div>
+              <div class="chip" onclick="selectChip('estado','Anulado',this)">❌ Anulado</div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label">Centro de costo</label>
+            <div class="chips" id="chips-costo">
+              <div class="chip" onclick="selectChip('costo','Tarrajeo',this)">🏗️ Tarrajeo</div>
+              <div class="chip" onclick="selectChip('costo','Materiales',this)">🧱 Materiales</div>
+              <div class="chip" onclick="selectChip('costo','Equipos',this)">🔧 Equipos</div>
+              <div class="chip" onclick="selectChip('costo','General',this)">📌 General</div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label">Fuente de financiamiento</label>
+            <div class="chips" id="chips-fuente">
+              <div class="chip" onclick="selectChip('fuente','Caja empresa',this)">🏢 Caja</div>
+              <div class="chip" onclick="selectChip('fuente','Préstamo Miguel',this)">👤 Préstamo M</div>
+              <div class="chip" onclick="selectChip('fuente','Préstamo Roberto',this)">👤 Préstamo R</div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label">Observaciones</label>
+            <textarea class="form-textarea" id="f-obs" placeholder="Notas adicionales..."></textarea>
+          </div>
+        </div>
+
+        <button class="btn-primary" onclick="saveMovimiento()">💾 Guardar movimiento</button>
+        <button class="btn-secondary" onclick="nextStep(2)">← Atrás</button>
+        <div style="height:20px"></div>
+      </div>
+    </div>
+
+    <!-- MOVIMIENTOS -->
+    <div class="page" id="page-movements">
+      <div class="filter-bar">
+        <div class="filter-chip active" onclick="filterMovs('all',this)">Todos</div>
+        <div class="filter-chip" onclick="filterMovs('Ingreso',this)">📈 Ingresos</div>
+        <div class="filter-chip" onclick="filterMovs('Egreso',this)">📉 Egresos</div>
+        <div class="filter-chip" onclick="filterMovs('Pendiente',this)">⏳ Pendientes</div>
+        <div class="filter-chip" onclick="filterMovs('Pagado',this)">✅ Pagados</div>
+      </div>
+
+      <div class="summary-row">
+        <div class="summary-item">
+          <div class="s-val" id="mov-total-count" style="color:var(--accent2)">0</div>
+          <div class="s-lab">registros</div>
+        </div>
+        <div class="summary-item">
+          <div class="s-val" id="mov-total-in" style="color:var(--income)">S/ 0</div>
+          <div class="s-lab">ingresos</div>
+        </div>
+        <div class="summary-item">
+          <div class="s-val" id="mov-total-out" style="color:var(--expense)">S/ 0</div>
+          <div class="s-lab">egresos</div>
+        </div>
+      </div>
+
+      <div id="mov-list"></div>
+      <div style="height:20px"></div>
+    </div>
+
+    <!-- EXPORTAR -->
+    <div class="page" id="page-export">
+      <div class="export-card">
+        <h3>📊 Exportar a Excel</h3>
+        <p>Descarga todos los movimientos en formato .xlsx compatible con tu base de datos Domotika.</p>
+        <button class="export-btn" onclick="exportExcel()">
+          <div class="export-btn-icon excel">📗</div>
+          <div>
+            <div style="font-weight:600">Exportar flujo_caja_domotika.xlsx</div>
+            <div style="font-size:11px;color:var(--text3)">Todos los movimientos con formato original</div>
+          </div>
+        </button>
+        <button class="export-btn" onclick="exportCSV()">
+          <div class="export-btn-icon csv">📄</div>
+          <div>
+            <div style="font-weight:600">Exportar como CSV</div>
+            <div style="font-size:11px;color:var(--text3)">Para importar en cualquier herramienta</div>
+          </div>
+        </button>
+      </div>
+
+      <div class="export-card">
+        <h3>📥 Importar desde Excel</h3>
+        <p>Carga un archivo .xlsx existente para continuar trabajando con tus datos.</p>
+        <button class="export-btn" onclick="document.getElementById('import-file').click()">
+          <div class="export-btn-icon excel">📂</div>
+          <div>
+            <div style="font-weight:600">Seleccionar archivo .xlsx</div>
+            <div style="font-size:11px;color:var(--text3)">Se importarán los datos de BASE_MOVIMIENTOS</div>
+          </div>
+        </button>
+        <input type="file" id="import-file" accept=".xlsx,.xls" style="display:none" onchange="importExcel(this)">
+      </div>
+
+      <div class="export-card">
+        <h3>🗑️ Gestión de datos</h3>
+        <p id="data-count-label">0 registros almacenados localmente.</p>
+        <button class="export-btn" onclick="clearData()">
+          <div class="export-btn-icon" style="background:rgba(255,71,87,0.15)">🗑️</div>
+          <div>
+            <div style="font-weight:600;color:var(--expense)">Limpiar todos los datos</div>
+            <div style="font-size:11px;color:var(--text3)">No se puede deshacer</div>
+          </div>
+        </button>
+      </div>
+
+      <div style="height:20px"></div>
+    </div>
+  </div>
+
+  <div class="bottomnav">
+    <button class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard')">
+      <span class="nav-icon">📊</span>
+      <span class="nav-label">Dashboard</span>
+    </button>
+    <button class="nav-item" id="nav-new" onclick="showPage('new')">
+      <span class="nav-icon">➕</span>
+      <span class="nav-label">Nuevo</span>
+    </button>
+    <button class="nav-item" id="nav-movements" onclick="showPage('movements')">
+      <span class="nav-icon">📋</span>
+      <span class="nav-label">Movimientos</span>
+    </button>
+    <button class="nav-item" id="nav-export" onclick="showPage('export')">
+      <span class="nav-icon">📤</span>
+      <span class="nav-label">Exportar</span>
+    </button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ DATA ============
+let DATA = [];
+const INITIAL_DATA = [
+  {id:1,fecha:'2026-02-02',tipo:'Egreso',categoria:'Operación',subcategoria:'Materiales',proyecto:'Navarra 360',proveedor:'FERRETERIA JEHOVA ES MI PASTOR',comercial:'Enderly',descripcion:'Compra de uniformes y materiales',monto_sin_igv:805.51,igv:144.99,monto_total:950.50,medio:'Transferencia',cuenta:'Cuenta Miguel',responsable:'Miguel',estado:'Pagado',tipo_doc:'Factura',ndoc:'F003-00055926',centro:'Tarrajeo',fuente:'Préstamo Miguel',obs:'Pendiente reembolso'},
+  {id:2,fecha:'2026-02-02',tipo:'Egreso',categoria:'Operación',subcategoria:'Materiales',proyecto:'Navarra 360',proveedor:'FERRETERIA JEHOVA ES MI PASTOR',comercial:'Enderly',descripcion:'Cintas',monto_sin_igv:27.12,igv:4.88,monto_total:32.00,medio:'Transferencia',cuenta:'Cuenta Miguel',responsable:'Miguel',estado:'Pagado',tipo_doc:'Factura',ndoc:'F003-00055933',centro:'Tarrajeo',fuente:'Préstamo Miguel',obs:'Pago con cuenta personal'},
+  {id:3,fecha:'2026-02-02',tipo:'Egreso',categoria:'Operación',subcategoria:'Materiales',proyecto:'Navarra 360',proveedor:'TICONA TAPIA YONY',comercial:'Zoe',descripcion:'Equipos y consumibles',monto_sin_igv:265.25,igv:47.75,monto_total:313.00,medio:'Transferencia',cuenta:'Cuenta Roberto',responsable:'Miguel',estado:'Pagado',tipo_doc:'Factura',ndoc:'FPP1-010141',centro:'Tarrajeo',fuente:'Préstamo Roberto',obs:'Pago con cuenta personal'},
+  {id:4,fecha:'2026-02-07',tipo:'Egreso',categoria:'Operación',subcategoria:'Materiales',proyecto:'Navarra 360',proveedor:'TICONA TAPIA YONY',comercial:'Zoe',descripcion:'Equipos',monto_sin_igv:237.29,igv:42.71,monto_total:280.00,medio:'Transferencia',cuenta:'-',responsable:'Miguel',estado:'Pagado',tipo_doc:'Factura',ndoc:'FPP1-010172',centro:'Tarrajeo',fuente:'-',obs:'-'},
+  {id:5,fecha:'2026-02-10',tipo:'Egreso',categoria:'Operación',subcategoria:'Materiales',proyecto:'Navarra 360',proveedor:'TICONA TAPIA YONY',comercial:'Zoe',descripcion:'Equipos y consumibles',monto_sin_igv:427.97,igv:77.03,monto_total:505.00,medio:'Transferencia',cuenta:'-',responsable:'Miguel',estado:'Pagado',tipo_doc:'Factura',ndoc:'FPP1-010192',centro:'Tarrajeo',fuente:'-',obs:'-'},
+  {id:6,fecha:'2026-02-13',tipo:'Egreso',categoria:'Operación',subcategoria:'Alquiler equipos',proyecto:'Navarra 360',proveedor:'IMAB SOLUTIONS S.A.C.',comercial:'Maria',descripcion:'Alquiler mensual de andamios',monto_sin_igv:9788.58,igv:1761.94,monto_total:11550.52,medio:'Transferencia',cuenta:'BCP Domotika',responsable:'Miguel',estado:'Pagado',tipo_doc:'Factura',ndoc:'F001-0006067',centro:'Tarrajeo',fuente:'Caja empresa',obs:'Material para inicio de obra'},
+  {id:7,fecha:'2026-02-13',tipo:'Egreso',categoria:'Detraccion',subcategoria:'Alquiler equipos',proyecto:'Navarra 360',proveedor:'IMAB SOLUTIONS S.A.C.',comercial:'Maria',descripcion:'Alquiler mensual de andamios',monto_sin_igv:1156.00,igv:0,monto_total:1156.00,medio:'Transferencia',cuenta:'Cuenta Miguel',responsable:'Miguel',estado:'Pagado',tipo_doc:'Factura',ndoc:'300209236',centro:'Tarrajeo',fuente:'Préstamo Miguel',obs:'Pago con cuenta personal'},
+  {id:8,fecha:'2026-02-27',tipo:'Egreso',categoria:'Operación',subcategoria:'Alquiler equipos',proyecto:'Navarra 360',proveedor:'IMAB SOLUTIONS S.A.C.',comercial:'Maria',descripcion:'Alquiler mensual de andamios',monto_sin_igv:1208.07,igv:217.45,monto_total:1425.52,medio:'Transferencia',cuenta:'BCP Domotika',responsable:'Miguel',estado:'Pagado',tipo_doc:'Factura',ndoc:'F001-0006100',centro:'Tarrajeo',fuente:'Caja empresa',obs:'Material para inicio de obra'},
+  {id:9,fecha:'2026-02-27',tipo:'Detraccion',categoria:'Detraccion',subcategoria:'Alquiler equipos',proyecto:'Navarra 360',proveedor:'IMAB SOLUTIONS S.A.C.',comercial:'Maria',descripcion:'Alquiler mensual de andamios',monto_sin_igv:143.00,igv:0,monto_total:143.00,medio:'Transferencia',cuenta:'Cuenta Miguel',responsable:'Miguel',estado:'Pagado',tipo_doc:'Factura',ndoc:'300210600',centro:'Tarrajeo',fuente:'Préstamo Miguel',obs:'Pago con cuenta personal'},
+  {id:10,fecha:'2026-02-13',tipo:'Egreso',categoria:'Operación',subcategoria:'Alquiler equipos',proyecto:'Navarra 360',proveedor:'IMAB SOLUTIONS S.A.C.',comercial:'Maria',descripcion:'Alquiler mensual de andamios',monto_sin_igv:750.00,igv:135.00,monto_total:885.00,medio:'Transferencia',cuenta:'BCP Domotika',responsable:'Miguel',estado:'Pagado',tipo_doc:'Factura',ndoc:'F001-0006068',centro:'Tarrajeo',fuente:'Caja empresa',obs:'Material para inicio de obra'},
+  {id:11,fecha:'2026-02-13',tipo:'Egreso',categoria:'Detraccion',subcategoria:'Alquiler equipos',proyecto:'Navarra 360',proveedor:'IMAB SOLUTIONS S.A.C.',comercial:'Maria',descripcion:'Alquiler mensual de andamios',monto_sin_igv:36.00,igv:0,monto_total:36.00,medio:'Transferencia',cuenta:'Cuenta Miguel',responsable:'Miguel',estado:'Pagado',tipo_doc:'Factura',ndoc:'300210101',centro:'Tarrajeo',fuente:'Préstamo Miguel',obs:'Pago con cuenta personal'},
+  {id:12,fecha:'2026-03-05',tipo:'Ingreso',categoria:'Operación',subcategoria:'Servicio construcción',proyecto:'Navarra 360',proveedor:'Inmobiliaria Navarra',comercial:'',descripcion:'Valorización parcial tarrajeo fachada',monto_sin_igv:50000.00,igv:9000.00,monto_total:59000.00,medio:'Transferencia',cuenta:'BCP Domotika',responsable:'Miguel',estado:'Pagado',tipo_doc:'Factura',ndoc:'F001-245',centro:'Tarrajeo',fuente:'Caja empresa',obs:'Pago valorización marzo'},
+  {id:13,fecha:'2026-03-06',tipo:'Egreso',categoria:'Operación',subcategoria:'Materiales',proyecto:'Navarra 360',proveedor:'Ferretería Central',comercial:'',descripcion:'Compra cemento y arena',monto_sin_igv:1800.00,igv:324.00,monto_total:2124.00,medio:'Transferencia',cuenta:'BCP Domotika',responsable:'Miguel',estado:'Pagado',tipo_doc:'Factura',ndoc:'F123-889',centro:'Materiales',fuente:'Caja empresa',obs:'Material para inicio de obra'},
+  {id:14,fecha:'2026-03-06',tipo:'Egreso',categoria:'Operación',subcategoria:'Alquiler equipos',proyecto:'Navarra 360',proveedor:'IMAB Andamios',comercial:'',descripcion:'Alquiler mensual de andamios',monto_sin_igv:10000.00,igv:1800.00,monto_total:11800.00,medio:'Transferencia',cuenta:'Cuenta Miguel',responsable:'Miguel',estado:'Pendiente',tipo_doc:'Factura',ndoc:'F332-991',centro:'Equipos',fuente:'Préstamo Miguel',obs:'Pago con cuenta personal'},
+];
+
+const FORM_STATE = {
+  tipo:'', proyecto:'', categoria:'', subcategoria:'',
+  medio:'', cuenta:'', responsable:'', tipodoc:'',
+  estado:'', costo:'', fuente:''
+};
+
+let barChart, doughnutChart, projectChart;
+let currentFilter = 'all';
+
+// ============ INIT ============
+function init() {
+  const saved = localStorage.getItem('domotika_data');
+  DATA = saved ? JSON.parse(saved) : [...INITIAL_DATA];
+  const today = new Date();
+  document.getElementById('f-fecha').value = today.toISOString().split('T')[0];
+  document.getElementById('topbar-date').textContent = today.toLocaleDateString('es-PE', {weekday:'long',day:'numeric',month:'long'});
+  updateProveedoresList();
+  renderDashboard();
+  renderMovements();
+  updateDataCount();
+}
+
+function saveData() {
+  localStorage.setItem('domotika_data', JSON.stringify(DATA));
+}
+
+function updateProveedoresList() {
+  const list = document.getElementById('proveedores-list');
+  const unique = [...new Set(DATA.map(d=>d.proveedor).filter(Boolean))];
+  list.innerHTML = unique.map(p=>`<option value="${p}">`).join('');
+}
+
+// ============ NAVIGATION ============
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  const nav = document.getElementById('nav-'+page);
+  if(nav) nav.classList.add('active');
+  if(page==='dashboard') renderDashboard();
+  if(page==='movements') renderMovements();
+  if(page==='export') updateDataCount();
+  document.getElementById('content').scrollTop = 0;
+}
+
+// ============ FORM ============
+function selectChip(group, value, el) {
+  const container = el.closest('.chips');
+  container.querySelectorAll('.chip').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  FORM_STATE[group] = value;
+  if(group==='subcategoria') document.getElementById('f-subcategoria').value = value;
+}
+
+let igvOn = true;
+function toggleIGV() {
+  igvOn = !igvOn;
+  document.getElementById('igv-toggle').classList.toggle('on', igvOn);
+  calcIGV();
+}
+
+function calcIGV() {
+  const val = parseFloat(document.getElementById('f-monto').value)||0;
+  const igv = igvOn ? val * 0.18/1.18 : val * 0.18;
+  document.getElementById('igv-text').textContent = `IGV: S/ ${igv.toFixed(2)}`;
+}
+
+function nextStep(n) {
+  if(n===2) {
+    if(!FORM_STATE.tipo) { showToast('Selecciona tipo de movimiento','error'); return; }
+    if(!document.getElementById('f-monto').value) { showToast('Ingresa el monto','error'); return; }
+    if(!FORM_STATE.proyecto) { showToast('Selecciona el proyecto','error'); return; }
+  }
+  if(n===3) {
+    if(!document.getElementById('f-proveedor').value) { showToast('Ingresa cliente/proveedor','error'); return; }
+    if(!document.getElementById('f-descripcion').value) { showToast('Escribe una descripción','error'); return; }
+  }
+  [1,2,3].forEach(i=>{
+    document.getElementById('step-'+i).style.display = i===n?'block':'none';
+    document.getElementById('dot-'+i).classList.toggle('active', i===n);
+  });
+  document.getElementById('content').scrollTop = 0;
+}
+
+function saveMovimiento() {
+  const montoTotal = parseFloat(document.getElementById('f-monto').value)||0;
+  const igvVal = igvOn ? montoTotal * 0.18/1.18 : montoTotal * 0.18;
+  const montoSinIGV = montoTotal - igvVal;
+
+  const nextId = DATA.length ? Math.max(...DATA.map(d=>d.id||0))+1 : 1;
+  const mov = {
+    id: nextId,
+    fecha: document.getElementById('f-fecha').value,
+    tipo: FORM_STATE.tipo,
+    categoria: FORM_STATE.categoria || 'Operación',
+    subcategoria: document.getElementById('f-subcategoria').value || FORM_STATE.subcategoria,
+    proyecto: FORM_STATE.proyecto,
+    proveedor: document.getElementById('f-proveedor').value,
+    comercial: FORM_STATE.responsable,
+    descripcion: document.getElementById('f-descripcion').value,
+    monto_sin_igv: parseFloat(montoSinIGV.toFixed(2)),
+    igv: parseFloat(igvVal.toFixed(2)),
+    monto_total: montoTotal,
+    medio: FORM_STATE.medio || 'Transferencia',
+    cuenta: FORM_STATE.cuenta || '-',
+    responsable: FORM_STATE.responsable,
+    estado: FORM_STATE.estado || 'Pagado',
+    tipo_doc: FORM_STATE.tipodoc || 'Factura',
+    ndoc: document.getElementById('f-ndoc').value,
+    centro: FORM_STATE.costo || '-',
+    fuente: FORM_STATE.fuente || '-',
+    obs: document.getElementById('f-obs').value,
+  };
+
+  DATA.unshift(mov);
+  saveData();
+  updateProveedoresList();
+  showToast('✅ Movimiento guardado correctamente');
+
+  // Reset form
+  resetForm();
+  setTimeout(()=>showPage('movements'), 800);
+}
+
+function resetForm() {
+  Object.keys(FORM_STATE).forEach(k=>FORM_STATE[k]='');
+  document.querySelectorAll('.chip.selected').forEach(c=>c.classList.remove('selected'));
+  ['f-monto','f-descripcion','f-proveedor','f-ndoc','f-obs'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('f-subcategoria').value='';
+  document.getElementById('f-fecha').value = new Date().toISOString().split('T')[0];
+  igvOn = true;
+  document.getElementById('igv-toggle').classList.add('on');
+  document.getElementById('igv-text').textContent = 'IGV: S/ 0.00';
+  nextStep(1);
+}
+
+// ============ DASHBOARD ============
+function renderDashboard() {
+  const ingresos = DATA.filter(d=>d.tipo==='Ingreso');
+  const egresos = DATA.filter(d=>d.tipo==='Egreso'||d.tipo==='Detraccion');
+  const pendientes = DATA.filter(d=>d.estado==='Pendiente');
+
+  const totalIn = ingresos.reduce((s,d)=>s+d.monto_total,0);
+  const totalOut = egresos.reduce((s,d)=>s+d.monto_total,0);
+  const saldo = totalIn - totalOut;
+  const totalPending = pendientes.reduce((s,d)=>s+d.monto_total,0);
+
+  document.getElementById('kpi-income').textContent = fmtMoney(totalIn);
+  document.getElementById('kpi-income-count').textContent = `${ingresos.length} movimiento${ingresos.length!==1?'s':''}`;
+  document.getElementById('kpi-expense').textContent = fmtMoney(totalOut);
+  document.getElementById('kpi-expense-count').textContent = `${egresos.length} movimiento${egresos.length!==1?'s':''}`;
+  document.getElementById('kpi-balance').textContent = fmtMoney(saldo);
+  document.getElementById('kpi-pending').textContent = fmtMoney(totalPending);
+  document.getElementById('kpi-pending-count').textContent = `${pendientes.length} pendiente${pendientes.length!==1?'s':''}`;
+
+  renderBarChart();
+  renderDoughnutChart();
+  renderProjectChart();
+  renderProjection();
+}
+
+function renderBarChart() {
+  const months = {};
+  DATA.forEach(d=>{
+    const m = d.fecha ? d.fecha.substring(0,7) : 'N/A';
+    if(!months[m]) months[m] = {in:0,out:0};
+    if(d.tipo==='Ingreso') months[m].in += d.monto_total;
+    else months[m].out += d.monto_total;
+  });
+  const labels = Object.keys(months).sort();
+  const cfg = {
+    type:'bar',
+    data:{
+      labels: labels.map(l=>{ const [y,m]=l.split('-'); return new Date(y,m-1).toLocaleDateString('es',{month:'short',year:'2-digit'}); }),
+      datasets:[
+        {label:'Ingresos',data:labels.map(l=>months[l].in),backgroundColor:'rgba(16,212,142,0.7)',borderRadius:6,borderSkipped:false},
+        {label:'Egresos',data:labels.map(l=>months[l].out),backgroundColor:'rgba(255,71,87,0.7)',borderRadius:6,borderSkipped:false}
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{labels:{color:'#8b9ab5',font:{size:11}}}},scales:{x:{grid:{color:'rgba(37,48,68,0.5)'},ticks:{color:'#8b9ab5',font:{size:10}}},y:{grid:{color:'rgba(37,48,68,0.5)'},ticks:{color:'#8b9ab5',font:{size:10},callback:v=>fmtMoney(v)}}}}
+  };
+  if(barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById('chartBar'), cfg);
+}
+
+function renderDoughnutChart() {
+  const cats = {};
+  DATA.filter(d=>d.tipo!=='Ingreso').forEach(d=>{
+    const k = d.subcategoria||d.categoria||'Otro';
+    cats[k] = (cats[k]||0) + d.monto_total;
+  });
+  const sorted = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const COLORS = ['#00d4aa','#0099ff','#ff6b35','#ff4757','#ffa502','#7bed9f'];
+  const cfg = {
+    type:'doughnut',
+    data:{
+      labels:sorted.map(([k])=>k),
+      datasets:[{data:sorted.map(([,v])=>v),backgroundColor:COLORS,borderWidth:2,borderColor:'#161f2e'}]
+    },
+    options:{responsive:true,plugins:{legend:{position:'right',labels:{color:'#8b9ab5',font:{size:10},boxWidth:12}}}}
+  };
+  if(doughnutChart) doughnutChart.destroy();
+  doughnutChart = new Chart(document.getElementById('chartDoughnut'), cfg);
+}
+
+function renderProjectChart() {
+  const projs = {};
+  DATA.forEach(d=>{
+    const k = d.proyecto||'Sin proyecto';
+    if(!projs[k]) projs[k] = {in:0,out:0};
+    if(d.tipo==='Ingreso') projs[k].in += d.monto_total;
+    else projs[k].out += d.monto_total;
+  });
+  const labels = Object.keys(projs);
+  const cfg = {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Ingresos',data:labels.map(l=>projs[l].in),backgroundColor:'rgba(16,212,142,0.7)',borderRadius:6},
+        {label:'Egresos',data:labels.map(l=>projs[l].out),backgroundColor:'rgba(255,71,87,0.7)',borderRadius:6}
+      ]
+    },
+    options:{responsive:true,indexAxis:'y',plugins:{legend:{labels:{color:'#8b9ab5',font:{size:11}}}},scales:{x:{grid:{color:'rgba(37,48,68,0.5)'},ticks:{color:'#8b9ab5',font:{size:10}}},y:{grid:{color:'transparent'},ticks:{color:'#8b9ab5',font:{size:10}}}}}
+  };
+  if(projectChart) projectChart.destroy();
+  projectChart = new Chart(document.getElementById('chartProject'), cfg);
+}
+
+function renderProjection() {
+  const tb = document.getElementById('proj-tbody');
+  const items = DATA.filter(d=>d.tipo!=='Ingreso').slice(0,8);
+  tb.innerHTML = items.map(d=>`
+    <tr>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.descripcion||d.proveedor||'-'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--expense);font-size:12px">${fmtMoney(d.monto_total)}</td>
+      <td><span class="badge badge-${d.estado==='Pagado'?'paid':'pending'}">${d.estado}</span></td>
+    </tr>`).join('');
+}
+
+// ============ MOVEMENTS ============
+function renderMovements(filter) {
+  if(filter) currentFilter = filter;
+  let items = [...DATA];
+  if(currentFilter==='Ingreso') items = items.filter(d=>d.tipo==='Ingreso');
+  else if(currentFilter==='Egreso') items = items.filter(d=>d.tipo==='Egreso'||d.tipo==='Detraccion');
+  else if(currentFilter==='Pendiente') items = items.filter(d=>d.estado==='Pendiente');
+  else if(currentFilter==='Pagado') items = items.filter(d=>d.estado==='Pagado');
+
+  const totalIn = items.filter(d=>d.tipo==='Ingreso').reduce((s,d)=>s+d.monto_total,0);
+  const totalOut = items.filter(d=>d.tipo!=='Ingreso').reduce((s,d)=>s+d.monto_total,0);
+  document.getElementById('mov-total-count').textContent = items.length;
+  document.getElementById('mov-total-in').textContent = fmtMoney(totalIn);
+  document.getElementById('mov-total-out').textContent = fmtMoney(totalOut);
+
+  const list = document.getElementById('mov-list');
+  if(!items.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><h3>Sin movimientos</h3><p>No hay registros para este filtro</p></div>`;
+    return;
+  }
+
+  list.innerHTML = items.map((d,i)=>`
+    <div class="mov-item" style="animation-delay:${i*30}ms">
+      <div class="mov-icon ${d.tipo==='Ingreso'?'ingreso':'egreso'}">${d.tipo==='Ingreso'?'📈':'📉'}</div>
+      <div class="mov-info">
+        <div class="mov-desc">${d.descripcion||'Sin descripción'}</div>
+        <div class="mov-meta">${d.proveedor||'-'} · ${d.subcategoria||d.categoria||'-'}</div>
+        <div class="mov-meta" style="margin-top:3px"><span class="badge badge-${d.estado==='Pagado'?'paid':'pending'}">${d.estado}</span> <span style="color:var(--text3)">${d.proyecto||'-'}</span></div>
+      </div>
+      <div class="mov-right">
+        <div class="mov-amount ${d.tipo==='Ingreso'?'ingreso':'egreso'}">${d.tipo==='Ingreso'?'+':'−'}${fmtMoney(d.monto_total)}</div>
+        <div class="mov-date">${fmtDate(d.fecha)}</div>
+      </div>
+    </div>`).join('');
+}
+
+function filterMovs(f, el) {
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderMovements(f);
+}
+
+// ============ EXPORT ============
+function exportExcel() {
+  const ws_data = [
+    ['ID','Fecha','Tipo de movimiento','Categoría principal','Subcategoría','Proyecto','Cliente / Proveedor','Comercial','Descripción','Monto sin IGV','IGV','Monto total','Medio de pago','Cuenta bancaria','Responsable','Estado','Tipo de documento','Nº documento','Centro de costo','Fuente de financiamiento','Observaciones']
+  ];
+  DATA.forEach(d=>ws_data.push([
+    d.id,d.fecha,d.tipo,d.categoria,d.subcategoria,d.proyecto,d.proveedor,d.comercial,
+    d.descripcion,d.monto_sin_igv,d.igv,d.monto_total,d.medio,d.cuenta,d.responsable,
+    d.estado,d.tipo_doc,d.ndoc,d.centro,d.fuente,d.obs
+  ]));
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(ws_data);
+  ws['!cols'] = ws_data[0].map((_,i)=>({wch: i===8?40:i===6?35:18}));
+  XLSX.utils.book_append_sheet(wb, ws, 'BASE_MOVIMIENTOS');
+  XLSX.writeFile(wb, `flujo_caja_domotika_${new Date().toISOString().split('T')[0]}.xlsx`);
+  showToast('✅ Excel exportado correctamente');
+}
+
+function exportCSV() {
+  const headers = 'ID,Fecha,Tipo,Categoría,Subcategoría,Proyecto,Proveedor,Descripción,Monto sin IGV,IGV,Monto total,Medio,Cuenta,Responsable,Estado,Tipo doc,Nº doc,Centro,Fuente,Obs\n';
+  const rows = DATA.map(d=>[d.id,d.fecha,d.tipo,d.categoria,d.subcategoria,d.proyecto,`"${(d.proveedor||'').replace(/"/g,'""')}"`,`"${(d.descripcion||'').replace(/"/g,'""')}"`,d.monto_sin_igv,d.igv,d.monto_total,d.medio,d.cuenta,d.responsable,d.estado,d.tipo_doc,d.ndoc,d.centro,d.fuente,`"${(d.obs||'').replace(/"/g,'""')}"`].join(',')).join('\n');
+  const blob = new Blob([headers+rows],{type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `flujo_caja_domotika_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  showToast('✅ CSV exportado correctamente');
+}
+
+function importExcel(input) {
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'binary'});
+      const ws = wb.Sheets['BASE_MOVIMIENTOS'] || wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      const imported = rows.filter(r=>r['ID']||r['Fecha']).map((r,i)=>({
+        id: r['ID']||i+1,
+        fecha: r['Fecha']?String(r['Fecha']).split('T')[0]:'-',
+        tipo: r['Tipo de movimiento']||'Egreso',
+        categoria: r['Categoría principal']||'-',
+        subcategoria: r['Subcategoría']||'-',
+        proyecto: r['Proyecto']||'-',
+        proveedor: r['Cliente / Proveedor']||'-',
+        comercial: r['Comercial']||'',
+        descripcion: r['Descripción']||'-',
+        monto_sin_igv: parseFloat(r['Monto sin IGV'])||0,
+        igv: parseFloat(r['IGV'])||0,
+        monto_total: parseFloat(r['Monto total'])||0,
+        medio: r['Medio de pago']||'-',
+        cuenta: r['Cuenta bancaria']||'-',
+        responsable: r['Responsable']||'-',
+        estado: r['Estado']||'Pagado',
+        tipo_doc: r['Tipo de documento']||'-',
+        ndoc: r['Nº documento']||'',
+        centro: r['Centro de costo']||'-',
+        fuente: r['Fuente de financiamiento']||'-',
+        obs: r['Observaciones']||''
+      }));
+      DATA = imported;
+      saveData();
+      updateProveedoresList();
+      renderDashboard();
+      renderMovements();
+      updateDataCount();
+      showToast(`✅ ${imported.length} registros importados`);
+    } catch(err) {
+      showToast('❌ Error al importar el archivo','error');
+    }
+  };
+  reader.readAsBinaryString(file);
+  input.value='';
+}
+
+function clearData() {
+  if(!confirm('¿Seguro que quieres eliminar todos los datos? Esta acción no se puede deshacer.')) return;
+  DATA = [];
+  saveData();
+  renderDashboard();
+  renderMovements();
+  updateDataCount();
+  showToast('🗑️ Datos eliminados');
+}
+
+function updateDataCount() {
+  document.getElementById('data-count-label').textContent = `${DATA.length} registro${DATA.length!==1?'s':''} almacenado${DATA.length!==1?'s':''} localmente.`;
+}
+
+// ============ HELPERS ============
+function fmtMoney(v) {
+  return 'S/ '+Number(v||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function fmtDate(d) {
+  if(!d) return '-';
+  try { return new Date(d+'T00:00:00').toLocaleDateString('es-PE',{day:'numeric',month:'short',year:'numeric'}); }
+  catch{ return d; }
+}
+
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type?' '+type:'');
+  setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+// ============ SPLASH ============
+window.addEventListener('load', ()=>{
+  setTimeout(()=>{
+    document.getElementById('splash').style.opacity='0';
+    setTimeout(()=>{
+      document.getElementById('splash').style.display='none';
+      document.getElementById('app').style.display='flex';
+      init();
+    },500);
+  },1800);
+});
+</script>
+
+<script>
+if('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
